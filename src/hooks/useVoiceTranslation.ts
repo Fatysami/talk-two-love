@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef } from "react";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 export type VoiceState = "idle" | "listening" | "processing" | "speaking";
 export type Speaker = "me" | "other";
@@ -24,131 +25,217 @@ interface UseVoiceTranslationReturn {
   isBackendConnected: boolean;
 }
 
-// Demo mode - simulates the translation flow
-// In production, this would connect to real STT/Translation/TTS APIs
+// Language mapping for Web Speech API
+const LANGUAGE_CODES: Record<string, string> = {
+  'ar': 'ar-MA', // Moroccan Arabic
+  'tr': 'tr-TR',
+  'fr': 'fr-FR',
+  'en': 'en-US',
+};
+
+// Target language based on speaker (configurable later)
+const getTargetLang = (detectedLang: string, speaker: Speaker): string => {
+  // Simple logic: if speaking Arabic, translate to Turkish and vice versa
+  // If speaking French/English, translate to Arabic
+  const langMap: Record<string, string> = {
+    'ar': 'tr',
+    'ar-MA': 'tr',
+    'tr': 'ar',
+    'tr-TR': 'ar',
+    'fr': 'ar',
+    'fr-FR': 'ar',
+    'en': 'ar',
+    'en-US': 'ar',
+    'en-GB': 'ar',
+  };
+  return langMap[detectedLang] || 'fr';
+};
+
+// Check if Web Speech API is supported
+const isSpeechRecognitionSupported = (): boolean => {
+  return 'webkitSpeechRecognition' in window || 'SpeechRecognition' in window;
+};
+
+const isSpeechSynthesisSupported = (): boolean => {
+  return 'speechSynthesis' in window;
+};
+
 export function useVoiceTranslation(): UseVoiceTranslationReturn {
   const [meState, setMeState] = useState<VoiceState>("idle");
   const [otherState, setOtherState] = useState<VoiceState>("idle");
   const [detectedLang, setDetectedLang] = useState<string | null>(null);
   const [transcripts, setTranscripts] = useState<TranscriptEntry[]>([]);
-  const [isBackendConnected] = useState(false); // Will be true when Cloud is enabled
   const { toast } = useToast();
   
   const currentSpeaker = useRef<Speaker | null>(null);
-  const listeningTimeout = useRef<NodeJS.Timeout | null>(null);
+  const recognitionRef = useRef<any>(null);
+  const isBackendConnected = isSpeechRecognitionSupported() && isSpeechSynthesisSupported();
 
-  // Demo phrases for simulation
-  const demoPhrases: Record<string, { text: string; translation: string; targetLang: string }[]> = {
-    ar: [
-      { text: "كيف حالك؟", translation: "Nasılsın?", targetLang: "tr" },
-      { text: "أحبك", translation: "Seni seviyorum", targetLang: "tr" },
-      { text: "ما اسمك؟", translation: "Adın ne?", targetLang: "tr" },
-    ],
-    tr: [
-      { text: "İyiyim, sen nasılsın?", translation: "أنا بخير، وأنت؟", targetLang: "ar" },
-      { text: "Seni çok seviyorum", translation: "أحبك كثيرا", targetLang: "ar" },
-      { text: "Benim adım...", translation: "اسمي...", targetLang: "ar" },
-    ],
-    fr: [
-      { text: "Comment ça va?", translation: "How are you?", targetLang: "en" },
-      { text: "Je t'aime", translation: "I love you", targetLang: "en" },
-    ],
-    en: [
-      { text: "I'm doing well", translation: "Je vais bien", targetLang: "fr" },
-      { text: "Nice to meet you", translation: "Enchanté", targetLang: "fr" },
-    ],
-  };
+  // Translate text using Lovable AI
+  const translateText = useCallback(async (text: string, sourceLang: string, targetLang: string): Promise<string> => {
+    const { data, error } = await supabase.functions.invoke('translate', {
+      body: { text, sourceLang, targetLang }
+    });
 
-  const simulateTranslation = useCallback((speaker: Speaker) => {
-    // Simulate language detection
-    const langs = ["ar", "tr", "fr", "en"];
-    const randomLang = langs[Math.floor(Math.random() * langs.length)];
-    setDetectedLang(randomLang);
+    if (error) {
+      console.error('Translation error:', error);
+      throw new Error('Translation failed');
+    }
 
-    // Get random phrase
-    const phrases = demoPhrases[randomLang];
-    const phrase = phrases[Math.floor(Math.random() * phrases.length)];
+    return data.translatedText;
+  }, []);
 
-    // Simulate processing
-    setTimeout(() => {
-      if (speaker === "me") {
-        setMeState("processing");
-      } else {
-        setOtherState("processing");
+  // Speak text using Web Speech API
+  const speakText = useCallback((text: string, lang: string): Promise<void> => {
+    return new Promise((resolve, reject) => {
+      if (!isSpeechSynthesisSupported()) {
+        reject(new Error('Speech synthesis not supported'));
+        return;
       }
 
-      // Add transcript
-      setTimeout(() => {
-        const newEntry: TranscriptEntry = {
-          id: Date.now().toString(),
-          speaker,
-          originalText: phrase.text,
-          translatedText: phrase.translation,
-          originalLang: randomLang,
-          targetLang: phrase.targetLang,
-          timestamp: new Date(),
-        };
+      // Cancel any ongoing speech
+      window.speechSynthesis.cancel();
 
-        setTranscripts((prev) => [...prev, newEntry]);
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = LANGUAGE_CODES[lang] || lang;
+      utterance.rate = 0.9;
+      utterance.pitch = 1;
 
-        // Simulate speaking
-        if (speaker === "me") {
-          setMeState("speaking");
-        } else {
-          setOtherState("speaking");
-        }
+      // Try to find a voice for the language
+      const voices = window.speechSynthesis.getVoices();
+      const langCode = LANGUAGE_CODES[lang] || lang;
+      const voice = voices.find(v => v.lang.startsWith(langCode.split('-')[0]));
+      if (voice) {
+        utterance.voice = voice;
+      }
 
-        // Back to idle
-        setTimeout(() => {
-          if (speaker === "me") {
-            setMeState("idle");
-          } else {
-            setOtherState("idle");
-          }
-          setDetectedLang(null);
-        }, 2000);
-      }, 1000);
-    }, 500);
+      utterance.onend = () => resolve();
+      utterance.onerror = (e) => reject(e);
+
+      window.speechSynthesis.speak(utterance);
+    });
   }, []);
+
+  // Process the recognized speech
+  const processRecognizedSpeech = useCallback(async (
+    transcript: string, 
+    detectedLanguage: string, 
+    speaker: Speaker
+  ) => {
+    const setState = speaker === "me" ? setMeState : setOtherState;
+    
+    try {
+      setState("processing");
+      
+      const targetLang = getTargetLang(detectedLanguage, speaker);
+      const translatedText = await translateText(transcript, detectedLanguage, targetLang);
+
+      // Add to transcripts
+      const newEntry: TranscriptEntry = {
+        id: Date.now().toString(),
+        speaker,
+        originalText: transcript,
+        translatedText,
+        originalLang: detectedLanguage,
+        targetLang,
+        timestamp: new Date(),
+      };
+      setTranscripts(prev => [...prev, newEntry]);
+
+      // Speak the translation
+      setState("speaking");
+      await speakText(translatedText, targetLang);
+      
+    } catch (error) {
+      console.error('Processing error:', error);
+      toast({
+        title: "Erreur",
+        description: "La traduction a échoué. Veuillez réessayer.",
+        variant: "destructive",
+      });
+    } finally {
+      setState("idle");
+      setDetectedLang(null);
+    }
+  }, [translateText, speakText, toast]);
 
   const startListening = useCallback((speaker: Speaker) => {
     if (meState !== "idle" || otherState !== "idle") {
-      return; // Already in use
+      return;
+    }
+
+    if (!isSpeechRecognitionSupported()) {
+      toast({
+        title: "Non supporté",
+        description: "Votre navigateur ne supporte pas la reconnaissance vocale. Utilisez Chrome ou Edge.",
+        variant: "destructive",
+      });
+      return;
     }
 
     currentSpeaker.current = speaker;
+    const setState = speaker === "me" ? setMeState : setOtherState;
 
-    if (!isBackendConnected) {
-      // Demo mode
-      if (speaker === "me") {
-        setMeState("listening");
-      } else {
-        setOtherState("listening");
+    // Create speech recognition instance
+    const SpeechRecognition = (window as any).webkitSpeechRecognition || (window as any).SpeechRecognition;
+    const recognition = new SpeechRecognition();
+    
+    recognition.continuous = false;
+    recognition.interimResults = true;
+    recognition.maxAlternatives = 1;
+    
+    // Enable multiple language detection
+    // We'll try to detect from the supported languages
+    recognition.lang = ''; // Empty for auto-detection (may not work in all browsers)
+    
+    recognition.onstart = () => {
+      setState("listening");
+    };
+
+    recognition.onresult = (event: any) => {
+      const result = event.results[event.results.length - 1];
+      if (result.isFinal) {
+        const transcript = result[0].transcript;
+        // Try to detect language from the result
+        const detectedLang = recognition.lang || detectLanguageFromText(transcript);
+        setDetectedLang(detectedLang);
+        processRecognizedSpeech(transcript, detectedLang, speaker);
       }
+    };
 
-      // Show a toast first time
-      toast({
-        title: "Mode démo 🎭",
-        description: "Connectez le backend pour la vraie traduction vocale",
-      });
-    }
-  }, [meState, otherState, isBackendConnected, toast]);
+    recognition.onerror = (event: any) => {
+      console.error('Speech recognition error:', event.error);
+      setState("idle");
+      
+      if (event.error === 'not-allowed') {
+        toast({
+          title: "Microphone bloqué",
+          description: "Veuillez autoriser l'accès au microphone dans les paramètres de votre navigateur.",
+          variant: "destructive",
+        });
+      }
+    };
+
+    recognition.onend = () => {
+      // Recognition ended - reset to idle
+      setMeState("idle");
+      setOtherState("idle");
+    };
+
+    recognitionRef.current = recognition;
+    
+    // Start with a specific language based on speaker preference
+    // This is a workaround since auto-detection isn't reliable
+    recognition.lang = speaker === "me" ? "ar-MA" : "tr-TR"; // Default languages
+    recognition.start();
+
+  }, [meState, otherState, processRecognizedSpeech, toast]);
 
   const stopListening = useCallback(() => {
-    const speaker = currentSpeaker.current;
-    if (!speaker) return;
-
-    if (listeningTimeout.current) {
-      clearTimeout(listeningTimeout.current);
+    if (recognitionRef.current) {
+      recognitionRef.current.stop();
     }
-
-    if (!isBackendConnected) {
-      // Demo mode - simulate translation
-      simulateTranslation(speaker);
-    }
-
-    currentSpeaker.current = null;
-  }, [isBackendConnected, simulateTranslation]);
+  }, []);
 
   return {
     meState,
@@ -159,4 +246,22 @@ export function useVoiceTranslation(): UseVoiceTranslationReturn {
     stopListening,
     isBackendConnected,
   };
+}
+
+// Simple language detection based on character patterns
+function detectLanguageFromText(text: string): string {
+  // Check for Arabic characters
+  if (/[\u0600-\u06FF]/.test(text)) {
+    return 'ar';
+  }
+  // Check for Turkish-specific characters
+  if (/[ğüşıöçĞÜŞİÖÇ]/.test(text)) {
+    return 'tr';
+  }
+  // Check for French-specific patterns
+  if (/[àâäéèêëïîôùûüÿçœæ]/i.test(text) || /\b(je|tu|il|elle|nous|vous|ils|elles|le|la|les|un|une|des)\b/i.test(text)) {
+    return 'fr';
+  }
+  // Default to English
+  return 'en';
 }
