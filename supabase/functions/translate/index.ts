@@ -28,8 +28,8 @@ serve(async (req) => {
 
     // Language name mapping for better prompts
     const languageNames: Record<string, string> = {
-      'ar': 'Arabic (Moroccan dialect)',
-      'ar-MA': 'Arabic (Moroccan dialect)',
+      'ar': 'Modern Standard Arabic',
+      'ar-MA': 'Modern Standard Arabic',
       'tr': 'Turkish',
       'tr-TR': 'Turkish',
       'fr': 'French',
@@ -47,7 +47,7 @@ serve(async (req) => {
 IMPORTANT RULES:
 - Return ONLY the translated text, nothing else
 - Keep the same tone and style
-- For Moroccan Arabic (Darija), use natural colloquial expressions
+- Use Modern Standard Arabic (الفصحى) for Arabic translations
 - Preserve any names, numbers, or technical terms as appropriate
 - Do not add explanations or notes`;
 
