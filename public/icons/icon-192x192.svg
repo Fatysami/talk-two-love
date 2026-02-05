@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="192" height="192" viewBox="0 0 192 192">
+  <defs>
+    <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#e8654b;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#4a9999;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  <rect width="192" height="192" rx="40" fill="url(#grad1)"/>
+  <g fill="white">
+    <!-- Two speech bubbles representing duo conversation -->
+    <path d="M50 65 Q50 50 65 50 L95 50 Q110 50 110 65 L110 85 Q110 100 95 100 L75 100 L60 115 L60 100 L65 100 Q50 100 50 85 Z"/>
+    <path d="M82 92 Q82 77 97 77 L127 77 Q142 77 142 92 L142 112 Q142 127 127 127 L132 142 L117 127 L97 127 Q82 127 82 112 Z" fill-opacity="0.9"/>
+    <!-- Sound waves -->
+    <circle cx="80" cy="75" r="3"/>
+    <circle cx="112" cy="102" r="3"/>
+  </g>
+</svg>
