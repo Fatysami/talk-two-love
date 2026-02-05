@@ -23,6 +23,10 @@ interface UseVoiceTranslationReturn {
   startListening: (speaker: Speaker) => void;
   stopListening: () => void;
   isBackendConnected: boolean;
+  meLang: string;
+  otherLang: string;
+  setMeLang: (lang: string) => void;
+  setOtherLang: (lang: string) => void;
 }
 
 // Language mapping for Web Speech API
@@ -33,23 +37,6 @@ const LANGUAGE_CODES: Record<string, string> = {
   'en': 'en-US',
 };
 
-// Target language based on speaker (configurable later)
-const getTargetLang = (detectedLang: string, speaker: Speaker): string => {
-  // Simple logic: if speaking Arabic, translate to Turkish and vice versa
-  // If speaking French/English, translate to Arabic
-  const langMap: Record<string, string> = {
-    'ar': 'tr',
-    'ar-MA': 'tr',
-    'tr': 'ar',
-    'tr-TR': 'ar',
-    'fr': 'ar',
-    'fr-FR': 'ar',
-    'en': 'ar',
-    'en-US': 'ar',
-    'en-GB': 'ar',
-  };
-  return langMap[detectedLang] || 'fr';
-};
 
 // Check if Web Speech API is supported
 const isSpeechRecognitionSupported = (): boolean => {
@@ -65,11 +52,24 @@ export function useVoiceTranslation(): UseVoiceTranslationReturn {
   const [otherState, setOtherState] = useState<VoiceState>("idle");
   const [detectedLang, setDetectedLang] = useState<string | null>(null);
   const [transcripts, setTranscripts] = useState<TranscriptEntry[]>([]);
+  const [meLang, setMeLang] = useState<string>("ar");
+  const [otherLang, setOtherLang] = useState<string>("fr");
   const { toast } = useToast();
   
   const currentSpeaker = useRef<Speaker | null>(null);
   const recognitionRef = useRef<any>(null);
   const isBackendConnected = isSpeechRecognitionSupported() && isSpeechSynthesisSupported();
+
+  // Get target language based on speaker's selected language
+  const getTargetLang = useCallback((speaker: Speaker): string => {
+    // If "me" speaks, translate to "other"'s language and vice versa
+    return speaker === "me" ? otherLang : meLang;
+  }, [meLang, otherLang]);
+
+  // Get source language based on speaker
+  const getSourceLang = useCallback((speaker: Speaker): string => {
+    return speaker === "me" ? meLang : otherLang;
+  }, [meLang, otherLang]);
 
   // Translate text using Lovable AI
   const translateText = useCallback(async (text: string, sourceLang: string, targetLang: string): Promise<string> => {
@@ -119,16 +119,16 @@ export function useVoiceTranslation(): UseVoiceTranslationReturn {
   // Process the recognized speech
   const processRecognizedSpeech = useCallback(async (
     transcript: string, 
-    detectedLanguage: string, 
     speaker: Speaker
   ) => {
     const setState = speaker === "me" ? setMeState : setOtherState;
+    const sourceLang = getSourceLang(speaker);
+    const targetLang = getTargetLang(speaker);
     
     try {
       setState("processing");
       
-      const targetLang = getTargetLang(detectedLanguage, speaker);
-      const translatedText = await translateText(transcript, detectedLanguage, targetLang);
+      const translatedText = await translateText(transcript, sourceLang, targetLang);
 
       // Add to transcripts
       const newEntry: TranscriptEntry = {
@@ -136,7 +136,7 @@ export function useVoiceTranslation(): UseVoiceTranslationReturn {
         speaker,
         originalText: transcript,
         translatedText,
-        originalLang: detectedLanguage,
+        originalLang: sourceLang,
         targetLang,
         timestamp: new Date(),
       };
@@ -157,7 +157,7 @@ export function useVoiceTranslation(): UseVoiceTranslationReturn {
       setState("idle");
       setDetectedLang(null);
     }
-  }, [translateText, speakText, toast]);
+  }, [getSourceLang, getTargetLang, translateText, speakText, toast]);
 
   const startListening = useCallback((speaker: Speaker) => {
     if (meState !== "idle" || otherState !== "idle") {
@@ -196,10 +196,9 @@ export function useVoiceTranslation(): UseVoiceTranslationReturn {
       const result = event.results[event.results.length - 1];
       if (result.isFinal) {
         const transcript = result[0].transcript;
-        // Try to detect language from the result
-        const detectedLang = recognition.lang || detectLanguageFromText(transcript);
-        setDetectedLang(detectedLang);
-        processRecognizedSpeech(transcript, detectedLang, speaker);
+        const sourceLang = getSourceLang(speaker);
+        setDetectedLang(sourceLang);
+        processRecognizedSpeech(transcript, speaker);
       }
     };
 
@@ -224,12 +223,12 @@ export function useVoiceTranslation(): UseVoiceTranslationReturn {
 
     recognitionRef.current = recognition;
     
-    // Start with a specific language based on speaker preference
-    // This is a workaround since auto-detection isn't reliable
-    recognition.lang = speaker === "me" ? "ar-MA" : "tr-TR"; // Default languages
+    // Use the selected language for the speaker
+    const langCode = LANGUAGE_CODES[getSourceLang(speaker)] || getSourceLang(speaker);
+    recognition.lang = langCode;
     recognition.start();
 
-  }, [meState, otherState, processRecognizedSpeech, toast]);
+  }, [meState, otherState, getSourceLang, processRecognizedSpeech, toast]);
 
   const stopListening = useCallback(() => {
     if (recognitionRef.current) {
@@ -245,6 +244,10 @@ export function useVoiceTranslation(): UseVoiceTranslationReturn {
     startListening,
     stopListening,
     isBackendConnected,
+    meLang,
+    otherLang,
+    setMeLang,
+    setOtherLang,
   };
 }
 

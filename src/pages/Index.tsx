@@ -2,6 +2,7 @@ import { useState } from "react";
 import { VoiceButton } from "@/components/VoiceButton";
 import { TranscriptDisplay } from "@/components/TranscriptDisplay";
 import { LanguageIndicator } from "@/components/LanguageIndicator";
+import { LanguageSelector } from "@/components/LanguageSelector";
 import { useVoiceTranslation } from "@/hooks/useVoiceTranslation";
 import { Settings, History } from "lucide-react";
 
@@ -15,6 +16,10 @@ const Index = () => {
     startListening,
     stopListening,
     isBackendConnected,
+    meLang,
+    otherLang,
+    setMeLang,
+    setOtherLang,
   } = useVoiceTranslation();
 
   const isAnyActive = meState !== "idle" || otherState !== "idle";
@@ -54,24 +59,40 @@ const Index = () => {
         </div>
 
         {/* Voice buttons - the main interaction */}
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-6 sm:gap-12 py-8">
-          <VoiceButton
-            variant="me"
-            state={meState}
-            label="Moi"
-            onPressStart={() => startListening("me")}
-            onPressEnd={stopListening}
-            disabled={otherState !== "idle"}
-          />
+        <div className="flex flex-col items-center gap-8 py-8">
+          {/* Me section */}
+          <div className="flex flex-col items-center gap-3">
+            <LanguageSelector
+              selectedLang={meLang}
+              onSelect={setMeLang}
+              variant="me"
+            />
+            <VoiceButton
+              variant="me"
+              state={meState}
+              label="Moi"
+              onPressStart={() => startListening("me")}
+              onPressEnd={stopListening}
+              disabled={otherState !== "idle"}
+            />
+          </div>
           
-          <VoiceButton
-            variant="other"
-            state={otherState}
-            label="L'autre"
-            onPressStart={() => startListening("other")}
-            onPressEnd={stopListening}
-            disabled={meState !== "idle"}
-          />
+          {/* Other section */}
+          <div className="flex flex-col items-center gap-3">
+            <LanguageSelector
+              selectedLang={otherLang}
+              onSelect={setOtherLang}
+              variant="other"
+            />
+            <VoiceButton
+              variant="other"
+              state={otherState}
+              label="L'autre"
+              onPressStart={() => startListening("other")}
+              onPressEnd={stopListening}
+              disabled={meState !== "idle"}
+            />
+          </div>
         </div>
 
         {/* Transcript display */}
