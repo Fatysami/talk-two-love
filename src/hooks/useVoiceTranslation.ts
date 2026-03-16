@@ -98,7 +98,7 @@ export function useVoiceTranslation(): UseVoiceTranslationReturn {
 
       const utterance = new SpeechSynthesisUtterance(text);
       utterance.lang = LANGUAGE_CODES[lang] || lang;
-      utterance.rate = 0.9;
+      utterance.rate = 1.1;
       utterance.pitch = 1;
 
       // Try to find a voice for the language
@@ -181,7 +181,7 @@ export function useVoiceTranslation(): UseVoiceTranslationReturn {
     const recognition = new SpeechRecognition();
     
     recognition.continuous = false;
-    recognition.interimResults = true;
+    recognition.interimResults = false;
     recognition.maxAlternatives = 1;
     
     // Enable multiple language detection
