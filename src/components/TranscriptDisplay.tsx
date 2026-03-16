@@ -1,6 +1,5 @@
 import { cn } from "@/lib/utils";
-import { ChevronDown, ChevronUp } from "lucide-react";
-import { useState } from "react";
+import { Share2 } from "lucide-react";
 
 interface TranscriptEntry {
   id: string;
@@ -32,80 +31,64 @@ const LANG_NAMES: Record<string, string> = {
   en: "Anglais",
 };
 
+function shareToWhatsApp(original: string, translated: string, fromLang: string, toLang: string) {
+  const text = `${LANG_FLAGS[fromLang]} ${LANG_NAMES[fromLang]}:\n${original}\n\n${LANG_FLAGS[toLang]} ${LANG_NAMES[toLang]}:\n${translated}`;
+  const url = `https://wa.me/?text=${encodeURIComponent(text)}`;
+  window.open(url, "_blank");
+}
+
 export function TranscriptDisplay({
   entries,
   showText,
-  onToggleText,
 }: TranscriptDisplayProps) {
-  const latestEntry = entries[entries.length - 1];
+  if (entries.length === 0) {
+    return null;
+  }
 
   return (
-    <div className="w-full max-w-md mx-auto">
-      {/* Toggle button */}
-      <button
-        onClick={onToggleText}
-        className="flex items-center justify-center gap-2 w-full py-3 text-muted-foreground hover:text-foreground transition-colors"
-      >
-        {showText ? (
-          <>
-            <ChevronDown className="w-4 h-4" />
-            <span className="text-sm font-medium">Masquer le texte</span>
-          </>
-        ) : (
-          <>
-            <ChevronUp className="w-4 h-4" />
-            <span className="text-sm font-medium">Afficher le texte</span>
-          </>
-        )}
-      </button>
-
-      {/* Transcript bubbles */}
-      {showText && latestEntry && (
-        <div className="space-y-3 animate-fade-up">
+    <div className="w-full max-w-md mx-auto space-y-4">
+      {entries.map((entry) => (
+        <div key={entry.id} className="space-y-2 animate-fade-up">
           {/* Original text */}
-          <div
-            className={cn(
-              "transcript-bubble",
-              latestEntry.speaker === "me"
-                ? "transcript-bubble-me"
-                : "transcript-bubble-other"
-            )}
-          >
-            <div className="flex items-center gap-2 mb-2">
+          <div className="transcript-bubble transcript-bubble-me">
+            <div className="flex items-center gap-2 mb-1">
               <span className="lang-badge">
-                {LANG_FLAGS[latestEntry.originalLang]}{" "}
-                {LANG_NAMES[latestEntry.originalLang]}
+                {LANG_FLAGS[entry.originalLang]} {LANG_NAMES[entry.originalLang]}
               </span>
             </div>
-            <p className="text-foreground font-medium">
-              {latestEntry.originalText}
+            <p className="text-foreground font-medium text-sm leading-relaxed">
+              {entry.originalText}
             </p>
           </div>
 
           {/* Translated text */}
           <div className="transcript-bubble bg-card border border-border">
-            <div className="flex items-center gap-2 mb-2">
+            <div className="flex items-center justify-between mb-1">
               <span className="lang-badge">
-                {LANG_FLAGS[latestEntry.targetLang]}{" "}
-                {LANG_NAMES[latestEntry.targetLang]}
+                {LANG_FLAGS[entry.targetLang]} {LANG_NAMES[entry.targetLang]}
               </span>
-              <span className="text-xs text-muted-foreground">→ Traduction</span>
+              <button
+                onClick={() =>
+                  shareToWhatsApp(
+                    entry.originalText,
+                    entry.translatedText,
+                    entry.originalLang,
+                    entry.targetLang
+                  )
+                }
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#25D366]/10 text-[#25D366] hover:bg-[#25D366]/20 transition-colors text-xs font-semibold"
+                title="Envoyer sur WhatsApp"
+              >
+                <Share2 className="w-3.5 h-3.5" />
+                WhatsApp
+              </button>
             </div>
-            <p className="text-foreground font-medium">
-              {latestEntry.translatedText}
+            <p className="text-foreground font-medium text-sm leading-relaxed">
+              {entry.translatedText}
             </p>
           </div>
         </div>
-      )}
-
-      {/* Empty state */}
-      {showText && entries.length === 0 && (
-        <div className="text-center py-8 text-muted-foreground">
-          <p className="text-sm">
-            Appuyez sur un bouton et parlez pour commencer
-          </p>
-        </div>
-      )}
+      ))}
     </div>
   );
 }
