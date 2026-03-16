@@ -181,7 +181,7 @@ export function useVoiceTranslation(): UseVoiceTranslationReturn {
     const recognition = new SpeechRecognition();
     
     recognition.continuous = false;
-    recognition.interimResults = true;
+    recognition.interimResults = false;
     recognition.maxAlternatives = 1;
     
     // Enable multiple language detection
