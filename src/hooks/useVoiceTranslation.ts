@@ -53,6 +53,9 @@ export function useVoiceTranslation(): UseVoiceTranslationReturn {
 
   const recognitionRef = useRef<any>(null);
   const fullTranscriptRef = useRef<string>("");
+  const interimRef = useRef<string>("");
+  const isStoppingRef = useRef<boolean>(false);
+  const speakerRef = useRef<Speaker>("me");
   const isBackendConnected = isSpeechRecognitionSupported() && isSpeechSynthesisSupported();
 
   const getTargetLang = useCallback((speaker: Speaker): string => {
