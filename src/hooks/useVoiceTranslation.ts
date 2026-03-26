@@ -118,8 +118,7 @@ export function useVoiceTranslation(): UseVoiceTranslationReturn {
       };
       setTranscripts([newEntry]);
 
-      setState("speaking");
-      await speakText(translatedText, targetLang);
+      // TTS removed - translation only
     } catch (error) {
       console.error('Processing error:', error);
       toast({
