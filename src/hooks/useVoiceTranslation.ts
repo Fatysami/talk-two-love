@@ -149,12 +149,6 @@ export function useVoiceTranslation(): UseVoiceTranslationReturn {
 
     const setState = speaker === "me" ? setMeState : setOtherState;
     const SpeechRecognition = (window as any).webkitSpeechRecognition || (window as any).SpeechRecognition;
-    const recognition = new SpeechRecognition();
-
-    // Enable continuous mode for long dictation
-    recognition.continuous = true;
-    recognition.interimResults = true;
-    recognition.maxAlternatives = 1;
 
     const langCode = LANGUAGE_CODES[getSourceLang(speaker)] || getSourceLang(speaker);
     recognition.lang = langCode;
