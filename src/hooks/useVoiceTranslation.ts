@@ -20,8 +20,11 @@ interface UseVoiceTranslationReturn {
   otherState: VoiceState;
   detectedLang: string | null;
   transcripts: TranscriptEntry[];
+  draftText: string;
+  setDraftText: (text: string) => void;
   startListening: (speaker: Speaker) => void;
   stopListening: () => void;
+  translateDraft: () => void;
   isBackendConnected: boolean;
   meLang: string;
   otherLang: string;
