@@ -20,8 +20,11 @@ interface UseVoiceTranslationReturn {
   otherState: VoiceState;
   detectedLang: string | null;
   transcripts: TranscriptEntry[];
+  draftText: string;
+  setDraftText: (text: string) => void;
   startListening: (speaker: Speaker) => void;
   stopListening: () => void;
+  translateDraft: () => void;
   isBackendConnected: boolean;
   meLang: string;
   otherLang: string;
@@ -47,6 +50,7 @@ export function useVoiceTranslation(): UseVoiceTranslationReturn {
   const [otherState, setOtherState] = useState<VoiceState>("idle");
   const [detectedLang, setDetectedLang] = useState<string | null>(null);
   const [transcripts, setTranscripts] = useState<TranscriptEntry[]>([]);
+  const [draftText, setDraftText] = useState<string>("");
   const [meLang, setMeLang] = useState<string>("ar");
   const [otherLang, setOtherLang] = useState<string>("tr");
   const { toast } = useToast();
@@ -210,20 +214,18 @@ export function useVoiceTranslation(): UseVoiceTranslationReturn {
             console.error('Failed to restart recognition:', e);
             const text = (fullTranscriptRef.current + interimRef.current).trim();
             if (text) {
-              processRecognizedSpeech(text, speakerRef.current);
-            } else {
-              setState("idle");
+              setDraftText(text);
             }
+            setState("idle");
           }
           return;
         }
         // User stopped — process all accumulated text
         const text = (fullTranscriptRef.current + interimRef.current).trim();
         if (text) {
-          processRecognizedSpeech(text, speakerRef.current);
-        } else {
-          setState("idle");
+          setDraftText(text);
         }
+        setState("idle");
       };
 
       return recognition;
@@ -241,13 +243,23 @@ export function useVoiceTranslation(): UseVoiceTranslationReturn {
     }
   }, []);
 
+  const translateDraft = useCallback(() => {
+    if (draftText.trim()) {
+      processRecognizedSpeech(draftText.trim(), speakerRef.current);
+      setDraftText("");
+    }
+  }, [draftText, processRecognizedSpeech]);
+
   return {
     meState,
     otherState,
     detectedLang,
     transcripts,
+    draftText,
+    setDraftText,
     startListening,
     stopListening,
+    translateDraft,
     isBackendConnected,
     meLang,
     otherLang,

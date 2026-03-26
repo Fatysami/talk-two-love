@@ -31,8 +31,11 @@ const Index = () => {
     otherState,
     detectedLang,
     transcripts,
+    draftText,
+    setDraftText,
     startListening,
     stopListening,
+    translateDraft,
     isBackendConnected,
     meLang,
     otherLang,
@@ -117,6 +120,26 @@ const Index = () => {
           </p>
         </div>
 
+        {/* Editable draft area */}
+        {draftText && (
+          <div className="w-full max-w-md mx-auto space-y-3 animate-fade-up">
+            <textarea
+              value={draftText}
+              onChange={(e) => setDraftText(e.target.value)}
+              className="w-full min-h-[100px] p-4 rounded-2xl bg-card border border-border text-foreground text-sm leading-relaxed resize-y focus:outline-none focus:ring-2 focus:ring-primary/50"
+              placeholder="Ajustez le texte avant de traduire..."
+              dir={mode === "ar-tr" ? "rtl" : "ltr"}
+            />
+            <button
+              onClick={translateDraft}
+              disabled={meState === "processing"}
+              className="w-full py-3 rounded-2xl bg-primary text-primary-foreground font-bold text-base hover:opacity-90 active:scale-95 transition-all disabled:opacity-50"
+            >
+              {meState === "processing" ? "Traduction..." : "✨ Traduire"}
+            </button>
+          </div>
+        )}
+
         {/* Transcript display with WhatsApp share */}
         <div className="w-full">
           <TranscriptDisplay
@@ -127,13 +150,13 @@ const Index = () => {
         </div>
 
         {/* Instructions */}
-        {!isAnyActive && transcripts.length === 0 && (
+        {!isAnyActive && transcripts.length === 0 && !draftText && (
           <div className="text-center text-muted-foreground space-y-2 mt-4">
             <p className="text-sm">
               👆 Maintenez le bouton et dictez votre texte
             </p>
             <p className="text-xs opacity-75">
-              La traduction sera lue automatiquement
+              Vous pourrez ajuster le texte avant de traduire
             </p>
           </div>
         )}
