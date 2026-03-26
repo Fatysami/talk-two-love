@@ -116,7 +116,7 @@ export function useVoiceTranslation(): UseVoiceTranslationReturn {
         targetLang,
         timestamp: new Date(),
       };
-      setTranscripts(prev => [...prev, newEntry]);
+      setTranscripts([newEntry]);
 
       setState("speaking");
       await speakText(translatedText, targetLang);
