@@ -151,7 +151,6 @@ export function useVoiceTranslation(): UseVoiceTranslationReturn {
     const SpeechRecognition = (window as any).webkitSpeechRecognition || (window as any).SpeechRecognition;
 
     const langCode = LANGUAGE_CODES[getSourceLang(speaker)] || getSourceLang(speaker);
-    recognition.lang = langCode;
 
     fullTranscriptRef.current = "";
     interimRef.current = "";
