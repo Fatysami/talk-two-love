@@ -50,6 +50,7 @@ export function useVoiceTranslation(): UseVoiceTranslationReturn {
   const [otherState, setOtherState] = useState<VoiceState>("idle");
   const [detectedLang, setDetectedLang] = useState<string | null>(null);
   const [transcripts, setTranscripts] = useState<TranscriptEntry[]>([]);
+  const [draftText, setDraftText] = useState<string>("");
   const [meLang, setMeLang] = useState<string>("ar");
   const [otherLang, setOtherLang] = useState<string>("tr");
   const { toast } = useToast();
