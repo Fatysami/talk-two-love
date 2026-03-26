@@ -223,10 +223,9 @@ export function useVoiceTranslation(): UseVoiceTranslationReturn {
         // User stopped — process all accumulated text
         const text = (fullTranscriptRef.current + interimRef.current).trim();
         if (text) {
-          processRecognizedSpeech(text, speakerRef.current);
-        } else {
-          setState("idle");
+          setDraftText(text);
         }
+        setState("idle");
       };
 
       return recognition;
