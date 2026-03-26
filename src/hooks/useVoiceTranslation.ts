@@ -214,10 +214,9 @@ export function useVoiceTranslation(): UseVoiceTranslationReturn {
             console.error('Failed to restart recognition:', e);
             const text = (fullTranscriptRef.current + interimRef.current).trim();
             if (text) {
-              processRecognizedSpeech(text, speakerRef.current);
-            } else {
-              setState("idle");
+              setDraftText(text);
             }
+            setState("idle");
           }
           return;
         }
