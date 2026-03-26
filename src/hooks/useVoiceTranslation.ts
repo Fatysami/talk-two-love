@@ -160,49 +160,83 @@ export function useVoiceTranslation(): UseVoiceTranslationReturn {
     recognition.lang = langCode;
 
     fullTranscriptRef.current = "";
+    interimRef.current = "";
+    isStoppingRef.current = false;
+    speakerRef.current = speaker;
 
-    recognition.onstart = () => {
-      setState("listening");
-    };
+    const createRecognition = () => {
+      const recognition = new SpeechRecognition();
+      recognition.continuous = true;
+      recognition.interimResults = true;
+      recognition.maxAlternatives = 1;
+      recognition.lang = langCode;
 
-    recognition.onresult = (event: any) => {
-      let finalText = "";
-      let interimText = "";
-      for (let i = 0; i < event.results.length; i++) {
-        const result = event.results[i];
-        if (result.isFinal) {
-          finalText += result[0].transcript + " ";
-        } else {
-          interimText += result[0].transcript;
+      recognition.onstart = () => {
+        setState("listening");
+      };
+
+      recognition.onresult = (event: any) => {
+        let finalText = "";
+        let interim = "";
+        for (let i = 0; i < event.results.length; i++) {
+          const result = event.results[i];
+          if (result.isFinal) {
+            finalText += result[0].transcript + " ";
+          } else {
+            interim += result[0].transcript;
+          }
         }
-      }
-      fullTranscriptRef.current = finalText.trim();
-      const sourceLang = getSourceLang(speaker);
-      setDetectedLang(sourceLang);
+        if (finalText) {
+          fullTranscriptRef.current += finalText;
+        }
+        interimRef.current = interim;
+        setDetectedLang(getSourceLang(speakerRef.current));
+      };
+
+      recognition.onerror = (event: any) => {
+        console.error('Speech recognition error:', event.error);
+        if (event.error === 'not-allowed') {
+          toast({
+            title: "Microphone bloqué",
+            description: "Autorisez l'accès au microphone.",
+            variant: "destructive",
+          });
+          setState("idle");
+        }
+        // For other errors (network, aborted), let onend handle restart
+      };
+
+      recognition.onend = () => {
+        if (!isStoppingRef.current) {
+          // Auto-restart for long dictation (browser cuts after ~60s)
+          try {
+            const newRecognition = createRecognition();
+            recognitionRef.current = newRecognition;
+            newRecognition.start();
+          } catch (e) {
+            console.error('Failed to restart recognition:', e);
+            const text = (fullTranscriptRef.current + interimRef.current).trim();
+            if (text) {
+              processRecognizedSpeech(text, speakerRef.current);
+            } else {
+              setState("idle");
+            }
+          }
+          return;
+        }
+        // User stopped — process all accumulated text
+        const text = (fullTranscriptRef.current + interimRef.current).trim();
+        if (text) {
+          processRecognizedSpeech(text, speakerRef.current);
+        } else {
+          setState("idle");
+        }
+      };
+
+      return recognition;
     };
 
-    recognition.onerror = (event: any) => {
-      console.error('Speech recognition error:', event.error);
-      if (event.error === 'not-allowed') {
-        toast({
-          title: "Microphone bloqué",
-          description: "Autorisez l'accès au microphone.",
-          variant: "destructive",
-        });
-      }
-      setState("idle");
-    };
-
-    recognition.onend = () => {
-      // When recognition ends (user released button), process the accumulated text
-      const text = fullTranscriptRef.current.trim();
-      if (text) {
-        processRecognizedSpeech(text, speaker);
-      } else {
-        setState("idle");
-      }
-    };
-
+    const recognition = createRecognition();
     recognitionRef.current = recognition;
     recognition.start();
   }, [meState, otherState, getSourceLang, processRecognizedSpeech, toast]);
