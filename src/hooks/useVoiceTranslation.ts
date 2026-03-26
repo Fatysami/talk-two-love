@@ -235,6 +235,7 @@ export function useVoiceTranslation(): UseVoiceTranslationReturn {
   }, [meState, otherState, getSourceLang, processRecognizedSpeech, toast]);
 
   const stopListening = useCallback(() => {
+    isStoppingRef.current = true;
     if (recognitionRef.current) {
       recognitionRef.current.stop();
     }
