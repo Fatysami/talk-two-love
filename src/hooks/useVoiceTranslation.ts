@@ -243,13 +243,23 @@ export function useVoiceTranslation(): UseVoiceTranslationReturn {
     }
   }, []);
 
+  const translateDraft = useCallback(() => {
+    if (draftText.trim()) {
+      processRecognizedSpeech(draftText.trim(), speakerRef.current);
+      setDraftText("");
+    }
+  }, [draftText, processRecognizedSpeech]);
+
   return {
     meState,
     otherState,
     detectedLang,
     transcripts,
+    draftText,
+    setDraftText,
     startListening,
     stopListening,
+    translateDraft,
     isBackendConnected,
     meLang,
     otherLang,
